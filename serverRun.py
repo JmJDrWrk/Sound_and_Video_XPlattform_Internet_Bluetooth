@@ -1,3 +1,5 @@
+# EXT = 'exe'
+
 import subprocess
 import signal
 import time
@@ -5,18 +7,33 @@ import socket
 import threading
 import configparser
 
+filename='rutine.ini'
+rutine = configparser.ConfigParser()
+rutine.read(filename)
+rutine = rutine['runtimeConfiguration']
 
-CONTROL_PORT = 9548
+EXT = rutine['EXT']
 
-filename='config.ini'
+controlPort = int(rutine['controlport']) # 9548
+video = bool(rutine['allowVideoSharing'])
+mouseandkeyboard= bool(rutine['allowMouseAndKeyboardBeingControlled'])
+audio = bool(rutine['allowAudioSharing'])
 
+CONTROL_PORT = controlPort
 
 
 scripts = {
-    "audio_server": "python audioServer.py",
-    "video_server": "python videoServer.py",
-    "video_mouse_server": "python mousekeyboard.py"
+
 }
+
+if(video): scripts['video_server'] = f'python videoServer.{EXT}'
+if(audio): scripts['audio_server'] = f'python audioServer.{EXT}'
+if(mouseandkeyboard): scripts['video_mouse_server'] = f'python mousekeyboard.{EXT}'
+
+if(not video and not audio and not mouseandkeyboard):
+    print('\nERROR!! At least one server must be set as true.')
+    exit()
+
 
 processes = {}
 
