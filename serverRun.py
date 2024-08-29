@@ -1,7 +1,4 @@
-# EXT = 'exe'
-
 import subprocess
-import signal
 import time
 import socket
 import threading
