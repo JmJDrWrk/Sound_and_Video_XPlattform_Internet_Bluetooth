@@ -11,9 +11,9 @@ CONTROL_PORT = 9548
 filename='config.ini'
 
 
-
+#The other servers are only avaliable in windows-windows server with python pygame.
 scripts = {
-    "audio_server": "python androidTestServer.py"
+    "audio_server": "python audioServerForAndroidClient.py"
     # "video_server": "python videoServer.py",
     # "video_mouse_server": "python videoMouseServer.py"
 }
