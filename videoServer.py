@@ -20,16 +20,22 @@ PNG_PATH = 'cursor12x17.png'  # Path to the PNG image
 pyautogui.FAILSAFE = False
 
 def send_screen_data():
-    # Load the PNG image to overlay
-    overlay_image = Image.open(PNG_PATH)
+    # Load the PNG image to overlay and convert to RGBA
+    overlay_image = Image.open(PNG_PATH).convert("RGBA")
     
     # Resize the cursor image
     cursor_size = (cursorWidth, cursorHeight)  # New cursor size (width, height)
     overlay_image = overlay_image.resize(cursor_size)
     
-    # Convert the cursor image to white
-    overlay_image = ImageOps.grayscale(overlay_image)  # Convert to grayscale
-    overlay_image = ImageOps.colorize(overlay_image, black="white", white="white")  # Convert to white
+    # Convert the cursor image to white while preserving transparency
+    # Separate the alpha channel
+    alpha = overlay_image.split()[-1]
+    # Convert to grayscale to prepare for coloring
+    overlay_image = ImageOps.grayscale(overlay_image)
+    # Convert to white
+    overlay_image = ImageOps.colorize(overlay_image, black="white", white="white")
+    # Put the alpha channel back
+    overlay_image.putalpha(alpha)
     
     # Create a TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -48,8 +54,10 @@ def send_screen_data():
             # Get the cursor position
             cursor_x, cursor_y = pyautogui.position()
             
-            # Create an ImageDraw object to overlay the cursor image
-            screen_with_cursor = screen.copy()
+            # Convert screen to RGBA to support transparency
+            screen_with_cursor = screen.convert("RGBA")
+            
+            # Paste the overlay image with its alpha channel as the mask
             screen_with_cursor.paste(overlay_image, (cursor_x, cursor_y), overlay_image)
             
             # Save the image to a buffer
@@ -63,6 +71,8 @@ def send_screen_data():
             
             # Send the data
             conn.sendall(data)
+    except KeyboardInterrupt:
+        print('interrupted')
     finally:
         conn.close()
         sock.close()
