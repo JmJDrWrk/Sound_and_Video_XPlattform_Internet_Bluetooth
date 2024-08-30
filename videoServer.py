@@ -1,18 +1,35 @@
 import socket
 import numpy as np
-from PIL import ImageGrab, Image
+from PIL import ImageGrab, Image, ImageOps
 import io
 import struct
 import pyautogui
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.ini')
+config = config['screen_sharing']
+
+cursorWidth = int(config['cursorWidth'])
+cursorHeight = int(config['cursorHeight'])
 
 # Configuration
 SERVER_IP = '0.0.0.0'
 SERVER_PORT = 12345
 PNG_PATH = 'cursor12x17.png'  # Path to the PNG image
 pyautogui.FAILSAFE = False
+
 def send_screen_data():
     # Load the PNG image to overlay
     overlay_image = Image.open(PNG_PATH)
+    
+    # Resize the cursor image
+    cursor_size = (cursorWidth, cursorHeight)  # New cursor size (width, height)
+    overlay_image = overlay_image.resize(cursor_size)
+    
+    # Convert the cursor image to white
+    overlay_image = ImageOps.grayscale(overlay_image)  # Convert to grayscale
+    overlay_image = ImageOps.colorize(overlay_image, black="white", white="white")  # Convert to white
     
     # Create a TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -56,7 +73,3 @@ if __name__ == "__main__":
             send_screen_data()
         except Exception as e:
             print('Error\n', e)
-            # a = input('Continue?')
-            # if a.lower() == 'no':
-            #     exit()
-
