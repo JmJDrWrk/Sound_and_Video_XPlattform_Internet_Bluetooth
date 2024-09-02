@@ -7,6 +7,8 @@ import configparser
 import numpy as np
 import cv2
 import time
+import pickle
+
 config = configparser.ConfigParser()
 config.read('config.ini')
 
@@ -85,10 +87,10 @@ def handle_key_event(event, sock):
 def receive_and_display():
     global image_width, image_height, screen_width, screen_height
     
-    pygame.init()
+    # pygame.init()
     global screen
-    screen = pygame.display.set_mode(( int(config['default_window_width']), int(config['default_window_height'])), pygame.RESIZABLE)
-    pygame.display.set_caption('Client Screen')
+    # screen = pygame.display.set_mode(( int(config['default_window_width']), int(config['default_window_height'])), pygame.RESIZABLE)
+    # pygame.display.set_caption('Client Screen')
 
     # Connect to video server for registration
     tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -100,10 +102,10 @@ def receive_and_display():
 
     # Connect to video server for receiving video data over UDP
     udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    udp_sock.bind(('0.0.0.0', VIDEO_SERVER_PORT_UDP))
+    udp_sock.bind(('localhost', VIDEO_SERVER_PORT_UDP))
     
-    clock_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    clock_sock.bind(('0.0.0.0', VIDEO_SERVER_CLOCK_PORT))
+    # clock_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # clock_sock.bind(('0.0.0.0', VIDEO_SERVER_CLOCK_PORT))
     
     # Connect to mouse/keyboard server
     input_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -112,95 +114,58 @@ def receive_and_display():
     print(f"Connected to input server {MOUSE_SERVER_IP}:{MOUSE_SERVER_PORT}")
 
     try:
-        data_buffer = b''
-        image_received = False
-        counter = 0
+        def receive_in_chunks(expected_size):
+            data = b''
+            while len(data) < expected_size:
+                packet, _ = udp_sock.recvfrom(65535)
+                data += packet
+            return data
+
         while True:
-            # for event in pygame.event.get():
-            #     if event.type == pygame.QUIT:
-            #         pygame.quit()
-            #         exit()
-            
-            packet, _ = udp_sock.recvfrom(65507)
-            # print('Waiting clock')
-            clock,_ = clock_sock.recvfrom(16)
-            trigger = clock.decode()
-            
-            if not packet:
-                break
-            
-            if('next ' in trigger):
-                packet, _ = udp_sock.recvfrom(65507)
-                data_buffer += packet
-                counter += 1
-                sended = (int(trigger.split(':')[1]))
-                # if(sended!=counter):
-                print(f'Sended: {sended} Received: {counter}')
-                np_array = np.frombuffer(data_buffer, np.uint8)
-                frame = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+          
+            try:
+                frame_size_data, _ = udp_sock.recvfrom(8)
+                frame_size = struct.unpack("L", frame_size_data)[0]
+                frame_data = receive_in_chunks(frame_size)
+                # Decodificar los datos del marco
+                frame = pickle.loads(frame_data)
+                frame = cv2.imdecode(frame, 1)
                 
                 if frame is not None:
                     image_height, image_width, n= frame.shape
+         
+                    height, width = frame.shape[:2]
+                    # Ajustar el tamaño según tus necesidades
+                    new_width = 800
+                    new_height = int((new_width / width) * height)
+                    resized_frame = cv2.resize(frame, (new_width, new_height))
+
+                    # Mostrar el marco redimensionado
+                    cv2.imshow('Screen Stream', resized_frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                    
+                    #Using old pygame
                     # Convert the frame from BGR to RGB
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    # frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    # # Convert the frame to a Pygame surface
+                    # frame_surface = pygame.surfarray.make_surface(frame_rgb.swapaxes(0, 1))
                     
-                    # Convert the frame to a Pygame surface
-                    frame_surface = pygame.surfarray.make_surface(frame_rgb.swapaxes(0, 1))
+                    # # Resize the image to fit the screen
+                    # screen_width, screen_height = screen.get_size()
+                    # resized_image = pygame.transform.scale(frame_surface, (screen_width, screen_height))
                     
-                    # Resize the image to fit the screen
-                    screen_width, screen_height = screen.get_size()
-                    resized_image = pygame.transform.scale(frame_surface, (screen_width, screen_height))
+                    # # Display the image
+                    # screen.blit(resized_image, (0, 0))
+                    # pygame.display.flip()
                     
-                    # Display the image
-                    screen.blit(resized_image, (0, 0))
-                    pygame.display.flip()
-                counter = 0
-                data_buffer = b''
-            else:
-                counter += 1
-                data_buffer += packet
-            
+                    # if cv2.waitKey(1) & 0xFF == ord('q'):
+                    #     break
+                    
+            except Exception as e:
+                print('Horror e', e)
 
-            #         if image_received:
-            # try:
-            #     # Try to open the image with the received data
-            #     image = Image.open(io.BytesIO(data_buffer))
-            #     image_width, image_height = image.size
-            #     image = pygame.image.fromstring(image.tobytes(), image.size, image.mode)
-
-            #     # Resize image to fit screen
-            #     screen_width, screen_height = screen.get_size()
-            #     resized_image = pygame.transform.scale(image, (screen_width, screen_height))
-
-            #     # Display the image
-            #     screen.blit(resized_image, (0, 0))
-            #     pygame.display.flip()
-                
-            #     # Clear buffer after processing the image
-            #     data_buffer = b''
-            #     image_received = False
-                
-            # except Exception as e:
-                # print(f"Error loading image: {e}")
-                # except Exception as e:
-                #     print(f"Error loading image: {e}")
-
-
-
-
-            # send_cursor_position(input_sock)
-
-            # for event in pygame.event.get():
-            #     if event.type == pygame.QUIT:
-            #         return
-            #     elif event.type == pygame.MOUSEBUTTONDOWN:
-            #         if event.button == 1:
-            #             send_click_signal(input_sock, 1)
-            #         elif event.button == 3:
-            #             send_click_signal(input_sock, 3)
-            #     elif event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
-            #         handle_key_event(event, input_sock)
-
+        
     except Exception as e:
         print('Error!', e)
     finally:
