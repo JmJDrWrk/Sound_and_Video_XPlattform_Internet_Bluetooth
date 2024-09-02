@@ -8,6 +8,8 @@ import configparser
 import cv2 
 import numpy
 import time
+import pickle
+from mss import mss
 config = configparser.ConfigParser()
 config.read('config.ini')
 config = config['screen_sharing']
@@ -24,7 +26,7 @@ PNG_PATH = 'cursor12x17.png'  # Path to the PNG image
 pyautogui.FAILSAFE = False
 
 
-MAX_UDP_PACKET_SIZE = 65507#65000  # Maximum UDP packet size
+MAX_UDP_PACKET_SIZE = 64000#65000  # Maximum UDP packet size
 
 def handle_client_registration():
     tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -56,44 +58,56 @@ def send_screen_data(client_ip):
     clock_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     try:
+        address = (client_ip, SERVER_PORT_UDP)
+        MAX_UDP_SIZE = 64000 
+        
+        def send_in_chunks(data):
+            # Envía primero el tamaño del mensaje
+            udp_sock.sendto(struct.pack("L", len(data)), address)
+            # Divide el mensaje en fragmentos
+            for i in range(0, len(data), MAX_UDP_SIZE):
+                chunk = data[i:i + MAX_UDP_SIZE]
+                udp_sock.sendto(chunk, address)
+                # print(len(chunk))
+                
+        def alternativeCaptureMethod():
+             # Capture entire screen
+            with mss() as sct:
+                monitor = sct.monitors[1]
+                sct_img = sct.grab(monitor)
+                # Convert to PIL/Pillow Image
+                return Image.frombytes('RGB', sct_img.size, sct_img.bgra, 'raw', 'BGRX')
+
+
         while True:
-            screen = ImageGrab.grab()
-            cursor_x, cursor_y = pyautogui.position()
-            screen_with_cursor = screen.convert("RGBA")
-            screen_with_cursor.paste(overlay_image, (cursor_x, cursor_y), overlay_image)
-            
-            #This works exactly as bad
-            # screenshot = pyautogui.screenshot()
-            # frame = np.array(screenshot)
-            
-            
-            # with io.BytesIO() as buffer:
-            #     screen_with_cursor.save(buffer, format='PNG')
-            #     data = buffer.getvalue()
-            
-            # Convert frame
-            frame = np.array(screen_with_cursor)
+            ## Old data version
+            # screen = ImageGrab.grab()
+            # cursor_x, cursor_y = pyautogui.position()
+            # screen_with_cursor = screen.convert("RGBA")
+            # screen_with_cursor.paste(overlay_image, (cursor_x, cursor_y), overlay_image)
+            # img = alternativeCaptureMethod()
+            frame = np.array(pyautogui.screenshot())
+            # frame = np.array(img)
             _, encoded_frame = cv2.imencode('.jpg', frame)
-            data = encoded_frame.tobytes()
+            # data = encoded_frame.tobytes()
+            data = pickle.dumps(encoded_frame)
             
-            counter = 0
-            # Send data in chunks
-            for i in range(0, len(data), MAX_UDP_PACKET_SIZE):
-                # print('i', i)
-                counter += 1
-                chunk = data[i:i + MAX_UDP_PACKET_SIZE]
-                udp_sock.sendto(chunk, (client_ip, SERVER_PORT_UDP))
-                if(i+MAX_UDP_PACKET_SIZE>len(data)):
-                    clock_sock.sendto(f'next sended:{counter}'.encode(), (client_ip, VIDEO_SERVER_CLOCK_PORT))
-                else:
-                    clock_sock.sendto('wait'.encode(), (client_ip, VIDEO_SERVER_CLOCK_PORT))
-            # Send delimiter to mark end of the image data
-            # udp_sock.sendto('k'.encode(), (client_ip, SERVER_PORT_UDP))
-            # clock_sock.sendto('next'.encode(), (client_ip, VIDEO_SERVER_CLOCK_PORT))
-            # print('Sending frame cut signal')
-            # time.sleep(1)
-            # udp_sock.sendto(b'END_OF_IMAGE', (client_ip, SERVER_PORT_UDP))
-            # print('FRAMED')
+            # Enviar datos en fragmentos
+            
+            #New Data Version
+            # img = pyautogui.screenshot()
+            # frame = np.array(img)
+
+            # # Convertir a RGB (OpenCV usa BGR)
+            # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # # Codificar el marco como JPEG
+            # _, buffer = cv2.imencode('.jpg', frame)
+            # data = pickle.dumps(buffer)
+            
+            send_in_chunks(data)
+            # time.sleep(0.001)
+
     except KeyboardInterrupt:
         print('Interrupted')
     finally:
