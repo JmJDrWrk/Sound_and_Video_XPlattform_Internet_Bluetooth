@@ -13,15 +13,18 @@ last_x, last_y = 0, 0
 def setup_logging():
     logging.basicConfig(filename='mouse_positions.log', level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s')
-
+old_print = print
+def print(*argv):
+    old_print('\t[Peripheral Server]',*argv)
+    
 def receive_mouse_positions():
     setup_logging()
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind((MOUSE_SERVER_IP, MOUSE_SERVER_PORT))
         sock.listen(1)
-        print("Mouse server waiting for a connection...")
+        print(f'waiting at {MOUSE_SERVER_IP}:{MOUSE_SERVER_PORT}')
         conn, addr = sock.accept()
-        print("Connected to", addr)
+        print(f'connected to, {addr}')
 
         try:
             global last_x, last_y

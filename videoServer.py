@@ -6,6 +6,11 @@ import struct
 import pyautogui
 import configparser
 
+old_print = print
+def print(*argv):
+    old_print('\t[Video Server]',*argv)
+    
+
 config = configparser.ConfigParser()
 config.read('config.ini')
 config = config['screen_sharing']
