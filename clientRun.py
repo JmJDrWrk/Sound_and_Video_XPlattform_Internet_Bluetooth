@@ -34,7 +34,7 @@ scripts = {
 }
 
 if(video): scripts['video_client'] = f'python clientVideo.{EXT}'
-if(audio): scripts['audio_client'] = f'python audioServer.{EXT}'
+if(audio): scripts['audio_client'] = f'python mouseClient.{EXT}'
 if(keyboard): scripts['keyboard_client'] = f'python keyboard.{EXT}'
 
 if(not video and not audio and not keyboard):

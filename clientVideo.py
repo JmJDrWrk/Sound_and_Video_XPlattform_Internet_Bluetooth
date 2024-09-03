@@ -29,6 +29,36 @@ VIDEO_SERVER_PORT = int(config['videoServerPort'])
 image_width, image_height = int(config['default_target_screen_width']), int(config['default_target_screen_height'])
 screen_width, screen_height = int(config['default_window_width']), int(config['default_window_height'])
 
+#Create a server for outcom mouse position data
+pygame_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+# pygame_socket.bind(('0.0.0.0',12340))
+# pygame_socket.listen(1)
+# print('Waiting consumer wake up')
+# conn, addr = pygame_socket.accept()
+# print('Data consumer connected')
+
+last_x, last_y = 0,0
+def update_mouse_position():
+    global last_x, last_y
+    x, y = pygame.mouse.get_pos()
+    
+    # Calculate scaling factors based on the current image dimensions
+    scale_x = image_width / screen_width
+    scale_y = image_height / screen_height
+    # print('scaling factor at', scale_x, scale_y)
+    # Adjust mouse position based on scaling
+    adjusted_x = int(x * scale_x)
+    adjusted_y = int(y * scale_y)
+    
+    if (adjusted_x != last_x or adjusted_y != last_y):
+        # print('Enviando posiciones de raton actualizadas')
+        last_x, last_y = adjusted_x, adjusted_y
+        tosend = f'{last_x};{last_y};'.encode()
+        if len(tosend) < 16:
+            tosend = tosend.ljust(16, b'\0')  # Pad with null bytes (0x00)
+        pygame_socket.sendto(tosend, ('localhost',12340))
+
+
 def receive_and_display():
     global image_width, image_height, screen_width, screen_height
     
@@ -47,6 +77,12 @@ def receive_and_display():
 
     try:
         while True:
+            
+            try:
+                update_mouse_position()
+            except Exception as mouseUpdateException:
+                print('MouseUpdateException', mouseUpdateException)
+            
             frame_start_time = time.time()
 
             received_data = video_sock.recv(12)  # 4 bytes for size + 8 bytes for timestamp
@@ -57,7 +93,8 @@ def receive_and_display():
                 current_time = int(time.time() * 1_000_000)
                 elapsed_time = current_time - server_timestamp
                 if elapsed_time != 0 and elapsed_time < 2000:
-                    print('ELAPSED_TIME', elapsed_time)
+                    # print('ELAPSED_TIME', elapsed_time)
+                    pass
             else:
                 print("Error: received data length is not correct.")
 
@@ -72,6 +109,7 @@ def receive_and_display():
 
             if data:
                 try:
+                    
                     # Load image from bytes
                     image = Image.open(io.BytesIO(data))
 
@@ -103,6 +141,7 @@ def receive_and_display():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return
+
             frame_count += 1
             elapsed_time = time.time() - start_time
             if elapsed_time >= 1.0:
