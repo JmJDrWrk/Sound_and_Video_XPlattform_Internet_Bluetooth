@@ -6,7 +6,6 @@ import struct
 import pyautogui
 import configparser
 import time
-from skimage.metrics import structural_similarity as ssim
 
 old_print = print
 def print(*argv):
@@ -24,27 +23,6 @@ SERVER_IP = '0.0.0.0'
 SERVER_PORT = 12345
 PNG_PATH = 'cursor12x17.png'  # Path to the PNG image
 pyautogui.FAILSAFE = False
-
-def get_diff_image(prev_image, curr_image):
-    # Convert images to numpy arrays
-    prev_np = np.array(prev_image)
-    curr_np = np.array(curr_image)
-    
-    # Ensure the images are in the same size
-    if prev_np.shape != curr_np.shape:
-        raise ValueError("The images must be of the same size.")
-    
-    # Set a reasonable window size
-    win_size = min(prev_np.shape[:2]) // 8 * 2 + 1  # Ensure win_size is odd and not too large
-    win_size = max(win_size, 7)  # Ensure win_size is at least 7
-
-    # Compute the structural similarity index (SSIM)
-    ssim_index, diff = ssim(prev_np, curr_np, full=True, channel_axis=-1, win_size=win_size)
-    
-    # Convert the difference image to uint8
-    diff_image = (diff * 255).astype(np.uint8)
-    
-    return diff_image
 
 def send_screen_data():
     # Load the PNG image to overlay and convert to RGBA
@@ -68,8 +46,7 @@ def send_screen_data():
     print("Waiting for a connection...")
     conn, addr = sock.accept()
     print("Connected to", addr)
-    
-    prev_image = ImageGrab.grab()
+
     try:
         while True:
             # Capture the screen
@@ -83,13 +60,9 @@ def send_screen_data():
             screen_with_cursor.paste(overlay_image, (cursor_x, cursor_y), overlay_image)
             screen_with_cursor = screen_with_cursor.convert("RGB")
             
-            # Get difference image
-            diff_image = get_diff_image(prev_image, curr_image)
-            
-            # Save the diff image to a buffer and encode it
+            # Save the image to a buffer and encode it
             with io.BytesIO() as buffer:
-                diff_image_pil = Image.fromarray(diff_image)
-                diff_image_pil.save(buffer, format='JPEG')
+                screen_with_cursor.save(buffer, format='JPEG')
                 data = buffer.getvalue()
             
             # Send the size of the data first
@@ -102,9 +75,6 @@ def send_screen_data():
             
             # Send the data
             conn.sendall(data)
-            
-            # Update previous image
-            prev_image = curr_image
 
     except KeyboardInterrupt:
         print('Interrupted')
