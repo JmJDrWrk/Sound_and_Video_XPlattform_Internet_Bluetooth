@@ -7,7 +7,7 @@ pyautogui.FAILSAFE = False
 
 # Configuration
 MOUSE_SERVER_IP = '0.0.0.0'
-MOUSE_SERVER_PORT = 2444
+MOUSE_SERVER_PORT = 12346
 last_x, last_y = 0, 0
 
 def setup_logging():
