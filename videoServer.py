@@ -65,13 +65,17 @@ def send_screen_data():
                 screen_with_cursor.save(buffer, format='JPEG')
                 data = buffer.getvalue()
             
-            # Send the size of the data first
-            data_size = struct.pack('!I', len(data))
-            conn.sendall(data_size)
-            
-            # Send timestamp
-            TIMESTAMP = struct.pack('!Q', int(time.time() * 1_000_000))
-            conn.sendall(TIMESTAMP)
+            # Prepare the data size and timestamp
+            data_size = len(data)
+            timestamp = int(time.time() * 1_000_000)
+
+            # Pack both data size and timestamp into a single byte sequence
+            data_size_bytes = struct.pack('!I', data_size)
+            timestamp_bytes = struct.pack('!Q', timestamp)
+            combined_data = data_size_bytes + timestamp_bytes
+
+            # Send the combined data
+            conn.sendall(combined_data)
             
             # Send the data
             conn.sendall(data)
