@@ -1,0 +1,3 @@
+Average ELAPSED_TIME: 997.96
+Average FPS: 8.93
+                    

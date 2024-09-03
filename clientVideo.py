@@ -1,112 +1,66 @@
+#Ref SVPS-v3
+#Release Notes:
+# -Finally using tcp version with optimization
+# -Improve high fps up to 28 at least on this equipment
+# -Improve latency down between 1.8s and 800ms
+# -Added client-server features like delay and frames per second
+# -Removed utility to remote control mouse and keyboard but keeping mouse png pasting feedback to see mouse from client
+# -Deprecated usage of mousekeyboard.py and its configurations in client and in server side
+
+
 import pygame
 import socket
 import struct
 import io
 from PIL import Image
 import configparser
+import time
 
 config = configparser.ConfigParser()
 config.read('config.ini')
 
 config = config['screen_sharing']
 
-print('Calling', config['videoServerIp'] )
+print('Calling', config['videoServerIp'])
 
-# Configuration
-VIDEO_SERVER_IP = config['videoServerIp']  # Change this to your video server IP
+VIDEO_SERVER_IP = config['videoServerIp']
 VIDEO_SERVER_PORT = int(config['videoServerPort'])
-MOUSE_SERVER_IP = config['peripheralServerIp']  # Change this to your mouse server IP
-MOUSE_SERVER_PORT = int(config['peripheralServerPort'])
 
-# Modifier keys state
-modifier_state = {
-    'ctrl': False,
-    'alt': False,
-    'shift': False
-}
-
-last_x, last_y = 0, 0
-
-# Initialize these to avoid NameErrors
 image_width, image_height = int(config['default_target_screen_width']), int(config['default_target_screen_height'])
 screen_width, screen_height = int(config['default_window_width']), int(config['default_window_height'])
-
-def send_cursor_position(sock):
-    global last_x, last_y
-    x, y = pygame.mouse.get_pos()
-    
-    # Calculate scaling factors based on the current image dimensions
-    scale_x = image_width / screen_width
-    scale_y = image_height / screen_height
-    
-    # Adjust mouse position based on scaling
-    adjusted_x = int(x * scale_x)
-    adjusted_y = int(y * scale_y)
-    
-    if (adjusted_x != last_x or adjusted_y != last_y):
-        last_x, last_y = adjusted_x, adjusted_y
-        data = struct.pack('!II', adjusted_x, adjusted_y)
-        sock.sendall(data)
-
-def send_click_signal(sock, button):
-    data = struct.pack('!III', 0, 1, button)
-    sock.sendall(data)
-
-def send_key_signal(sock, key, is_down):
-    # Determine the modifier state
-    mod_state = 0
-    if modifier_state['ctrl']:
-        mod_state |= pygame.KMOD_CTRL
-    if modifier_state['alt']:
-        mod_state |= pygame.KMOD_ALT
-    if modifier_state['shift']:
-        mod_state |= pygame.KMOD_SHIFT
-    
-    # Send key signal with modifier state
-    data = struct.pack('!IIII', 0, 2, key, mod_state if is_down else 0)  # 2 indicates keyboard event
-    sock.sendall(data)
-
-def handle_key_event(event, sock):
-    global modifier_state
-    if event.key in [pygame.K_LCTRL, pygame.K_RCTRL]:
-        modifier_state['ctrl'] = (event.type == pygame.KEYDOWN)
-    elif event.key in [pygame.K_LALT, pygame.K_RALT]:
-        modifier_state['alt'] = (event.type == pygame.KEYDOWN)
-    elif event.key in [pygame.K_LSHIFT, pygame.K_RSHIFT]:
-        modifier_state['shift'] = (event.type == pygame.KEYDOWN)
-    
-    # Send the key event to the server
-    send_key_signal(sock, event.key, event.type == pygame.KEYDOWN)
 
 def receive_and_display():
     global image_width, image_height, screen_width, screen_height
     
     pygame.init()
     global screen
-    screen = pygame.display.set_mode(( int(config['default_window_width']), int(config['default_window_height'])), pygame.RESIZABLE)
+    screen = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
     pygame.display.set_caption('Client Screen')
 
-    # Connect to video server
     video_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
     video_sock.connect((VIDEO_SERVER_IP, VIDEO_SERVER_PORT))
-    
-    # Connect to mouse/keyboard server
-    input_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    input_sock.connect((MOUSE_SERVER_IP, MOUSE_SERVER_PORT))
-    
-    print(f"Connected to video server {VIDEO_SERVER_IP}:{VIDEO_SERVER_PORT}")
-    print(f"Connected to input server {MOUSE_SERVER_IP}:{MOUSE_SERVER_PORT}")
+
+    clock = pygame.time.Clock()
+    frame_count = 0
+    start_time = time.time()
 
     try:
         while True:
-            # Receive the size of the image data
-            data_size = video_sock.recv(4)
-            if not data_size:
-                print("No data size received, closing connection...")
-                break
-            
-            data_size = struct.unpack('!I', data_size)[0]
-            
+            frame_start_time = time.time()
+
+            received_data = video_sock.recv(12)  # 4 bytes for size + 8 bytes for timestamp
+            if len(received_data) == 12:
+                data_size = struct.unpack('!I', received_data[:4])[0]
+                server_timestamp = struct.unpack('!Q', received_data[4:])[0]
+
+                current_time = int(time.time() * 1_000_000)
+                elapsed_time = current_time - server_timestamp
+                if elapsed_time != 0 and elapsed_time < 2000:
+                    print('ELAPSED_TIME', elapsed_time)
+            else:
+                print("Error: received data length is not correct.")
+
             # Receive the image data
             data = b''
             while len(data) < data_size:
@@ -118,44 +72,52 @@ def receive_and_display():
 
             if data:
                 try:
-                    # Load image from bytes and display
+                    # Load image from bytes
                     image = Image.open(io.BytesIO(data))
-                    image_width, image_height = image.size
-                    image = pygame.image.fromstring(image.tobytes(), image.size, image.mode)
 
-                    # Additional image processing steps
+                    # Check and print image mode for debugging
+                    # print(f"Image mode: {image.mode}, Size: {image.size}")
+
+                    # Convert image to pygame format
+                    if image.mode == 'RGB':
+                        mode = 'RGB'
+                    elif image.mode == 'RGBA':
+                        mode = 'RGBA'
+                    else:
+                        print(f"Unsupported image mode: {image.mode}")
+                        continue
+                    
+                    image = pygame.image.fromstring(image.tobytes(), image.size, mode)
+
+                    # Resize image to fit screen
                     window_size = screen.get_size()
                     screen_width, screen_height = window_size
-                    # Resize the image to fit the screen
                     resized_image = pygame.transform.scale(image, (screen_width, screen_height))
 
+                    # Display the image
                     screen.blit(resized_image, (0, 0))
                     pygame.display.flip()
                 except Exception as e:
                     print(f"Error loading image: {e}")
-
-            # Send cursor position
-            send_cursor_position(input_sock)
-
-            # Handle Pygame events
+            # Process Pygame events
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:  # Left click
-                        send_click_signal(input_sock, 1)
-                    elif event.button == 3:  # Right click
-                        send_click_signal(input_sock, 3)
-                elif event.type == pygame.KEYDOWN:
-                    # Handle key down and key up events
-                    handle_key_event(event, input_sock)
+            frame_count += 1
+            elapsed_time = time.time() - start_time
+            if elapsed_time >= 1.0:
+                fps = frame_count / elapsed_time
+                print(f"FPS: {fps:.2f}")
+                frame_count = 0
+                start_time = time.time()
+
+            clock.tick(60)  # Adjusted to 30 FPS
 
     except Exception as e:
         print('Error', e)
     finally:
         pygame.quit()
         video_sock.close()
-        input_sock.close()
 
 if __name__ == "__main__":
     receive_and_display()
