@@ -5,7 +5,7 @@ import io
 import struct
 import pyautogui
 import configparser
-
+import time
 old_print = print
 def print(*argv):
     old_print('\t[Video Server]',*argv)
@@ -55,29 +55,34 @@ def send_screen_data():
         while True:
             # Capture the screen
             screen = ImageGrab.grab()
-            
+
             # Get the cursor position
             cursor_x, cursor_y = pyautogui.position()
-            
+
             # Convert screen to RGBA to support transparency
             screen_with_cursor = screen.convert("RGBA")
-            
+
             # Paste the overlay image with its alpha channel as the mask
+            # overlay_image should be loaded earlier in your actual code
             screen_with_cursor.paste(overlay_image, (cursor_x, cursor_y), overlay_image)
-            
-            # Save the image to a buffer
+            screen_with_cursor = screen_with_cursor.convert("RGB")
+            # Save the image to a buffer and encode it
             with io.BytesIO() as buffer:
-                screen_with_cursor.save(buffer, format='PNG')
+                screen_with_cursor.save(buffer, format='JPEG')  # Use JPEG for lower latency
                 data = buffer.getvalue()
-            
+
             # Send the size of the data first
             data_size = struct.pack('!I', len(data))
             conn.sendall(data_size)
-            
+
+            # Send timestamp
+            TIMESTAMP = struct.pack('!Q', int(time.time() * 1_000_000))
+            conn.sendall(TIMESTAMP)
+
             # Send the data
             conn.sendall(data)
     except KeyboardInterrupt:
-        print('interrupted')
+        print('Interrupted')
     finally:
         conn.close()
         sock.close()
