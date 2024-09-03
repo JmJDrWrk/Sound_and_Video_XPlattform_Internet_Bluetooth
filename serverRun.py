@@ -90,5 +90,5 @@ try:
 except KeyboardInterrupt:
     print("Shutting down all servers...")
     for server_name in list(processes.keys()):
-        stop_server(server_name)
+        stop_server(server_name)    
     print("All servers stopped.")
