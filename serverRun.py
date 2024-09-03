@@ -1,3 +1,12 @@
+#Ref SVPS-v3
+#Release Notes:
+# -Finally using tcp version with optimization
+# -Improve high fps up to 28 at least on this equipment
+# -Improve latency down between 1.8s and 800ms
+# -Added client-server features like delay and frames per second
+# -Removed utility to remote control mouse and keyboard but keeping mouse png pasting feedback to see mouse from client
+# -Deprecated usage of mousekeyboard.py and its configurations in client and in server side
+
 import subprocess
 import time
 import socket
@@ -13,7 +22,6 @@ EXT = rutine['EXT']
 
 controlPort = int(rutine['controlport']) # 9548
 video = bool(rutine['allowVideoSharing'])
-mouseandkeyboard= bool(rutine['allowMouseAndKeyboardBeingControlled'])
 audio = bool(rutine['allowAudioSharing'])
 
 CONTROL_PORT = controlPort
@@ -25,9 +33,9 @@ scripts = {
 
 if(video): scripts['video_server'] = f'python videoServer.{EXT}'
 if(audio): scripts['audio_server'] = f'python audioServer.{EXT}'
-if(mouseandkeyboard): scripts['video_mouse_server'] = f'python mousekeyboard.{EXT}'
 
-if(not video and not audio and not mouseandkeyboard):
+
+if(not video and not audio):
     print('\nERROR!! At least one server must be set as true.')
     exit()
 

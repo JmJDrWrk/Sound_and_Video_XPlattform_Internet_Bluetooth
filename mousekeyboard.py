@@ -1,3 +1,6 @@
+#Ref SVPS-v3
+#DEPRECATED NOT LONGER SUPPORTED
+
 import socket
 import struct
 import logging
