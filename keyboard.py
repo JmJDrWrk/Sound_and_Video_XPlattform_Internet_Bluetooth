@@ -1,4 +1,4 @@
-#Ref SVPS-v3.1
+#Ref SVPS-v4.0
 
 import socket
 import pyautogui 
@@ -21,12 +21,38 @@ def execute_command(command):
         if command.startswith("KEYPRESS:"):
             key = command[len("KEYPRESS:"):].strip()  # Extract and strip any extra whitespace
             print(f"Received key: {key}")
-          
-            pyautogui.press(key)
+
+            # Handle special keys
+            special_keys = {
+                "KEY.ENTER": "enter",
+                "KEY.SPACE": "space",
+                "KEY.TAB": "tab",
+                "KEY.BACKSPACE": "backspace",
+                "KEY.ESCAPE": "esc",
+                "KEY.SHIFT": "shift",
+                "KEY.CONTROL": "ctrl",
+                "KEY.ALT": "alt",
+                "KEY.DELETE": "delete",
+                "KEY.UP": "up",
+                "KEY.DOWN": "down",
+                "KEY.LEFT": "left",
+                "KEY.RIGHT": "right",
+                "KEY.F1": "f1",
+                "KEY.F2": "f2",
+                # Add more special keys as needed
+            }
+
+            # Convert the key to lowercase and check if it's a special key
+            key = key.upper()  # Convert to uppercase for comparison
+            if key in special_keys:
+                print('Pressing special key')
+                pyautogui.press(special_keys[key])
+            else:
+                pyautogui.press(key.lower())  # Use lowercase for normal keys
         else:
             print("Invalid command format")
     except Exception as e:
-            print(f"An error occurred: {e}")
+        print(f"An error occurred: {e}")
 
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
