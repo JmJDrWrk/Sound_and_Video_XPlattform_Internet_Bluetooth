@@ -1,12 +1,4 @@
-#Ref SVPS-v3
-#Release Notes:
-# -Finally using tcp version with optimization
-# -Improve high fps up to 28 at least on this equipment
-# -Improve latency down between 1.8s and 800ms
-# -Added client-server features like delay and frames per second
-# -Removed utility to remote control mouse and keyboard but keeping mouse png pasting feedback to see mouse from client
-# -Deprecated usage of mousekeyboard.py and its configurations in client and in server side
-
+#Ref SVPS-v4.0
 
 import pygame
 import socket
@@ -31,6 +23,7 @@ screen_width, screen_height = int(config['default_window_width']), int(config['d
 
 #Create a server for outcom mouse position data
 pygame_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+pygame_socket.settimeout(0.1)
 # pygame_socket.bind(('0.0.0.0',12340))
 # pygame_socket.listen(1)
 # print('Waiting consumer wake up')

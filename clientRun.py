@@ -1,17 +1,11 @@
-#Ref SVPS-v3.1.1
+#Ref SVPS-v4.0
 #Release Notes:
-# -Finally using tcp version with optimization
-# -Improve high fps up to 28 at least on this equipment
-# -Improve latency down between 1.8s and 800ms
-# -Added client-server features like delay and frames per second
-# -Deprecated usage of mousekeyboard.py and its configurations in client and in server side
-# -- 3.1
-# -- Added keyboard server script and support directly to this file in server side
-# -- Added keyboard client script into clien part manually managed
-# -- Both keyboard side scripts supports and requires new versions of config.ini and rutine.ini
-# --- 3.1.1
-# --- Added client launcher
-# --- clientRun is capable of running and managing services, this makes rutine.ini mandatory
+# - Added support for mouse
+# - Added support for keyboard
+# - Mouse sends relative position
+# - Unoptimized mouse sendings and extra callings inside mouseClient and clientVideo
+# - New port in use localhost between mouseClient and clientVideo
+# - ClientVideo and mouseClient requires to run together at least in this version
 
 import subprocess
 import configparser
@@ -27,6 +21,7 @@ EXT = rutine['EXT']
 video = bool(rutine['allowVideoSharing'])
 keyboard = bool(rutine['allowkeyboard'])
 audio = bool(rutine['allowAudioSharing'])
+mouse = bool(rutine['allowMouse'])
 
 
 scripts = {
@@ -34,8 +29,9 @@ scripts = {
 }
 
 if(video): scripts['video_client'] = f'python clientVideo.{EXT}'
-if(audio): scripts['audio_client'] = f'python mouseClient.{EXT}'
+if(audio): scripts['audio_client'] = f'python clientAudio.{EXT}'
 if(keyboard): scripts['keyboard_client'] = f'python keyboard.{EXT}'
+if(mouse): scripts['mouse_client'] = f'python mouseClient.{EXT}'
 
 if(not video and not audio and not keyboard):
     print('\nERROR!! At least one service must be set as true.')

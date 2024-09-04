@@ -1,15 +1,24 @@
+#Ref SVPS-v4.0
+
 import socket
 import json
 import time
 from pynput import mouse
 
-# Dirección del servidor
-SERVER_IP = '192.168.1.22'
-SERVER_PORT = 12341
-PYGAME_IP = '127.0.0.1'
-PYGAME_PORT = 12340
+import configparser
+config = configparser.ConfigParser()
+config.read('config.ini')
+config = config['mouse_sharing']
 
-# Servidor para la ingesta
+# Dirección del servidor
+SERVER_IP = config['mouseip']
+SERVER_PORT = int(config['mouseport'])
+usePygameMouse = bool(config['usepygamemouseposition'])
+PYGAME_IP = '127.0.0.1'
+PYGAME_PORT = int(config['pygamemousepositionport'])
+
+print('\n WARNING!! usePygameMouse value is ignored this version requires it to be true\n\n')
+
 pygame_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 pygame_socket.bind(('0.0.0.0', PYGAME_PORT))
 
@@ -24,20 +33,24 @@ event_buffer = []
 BUFFER_INTERVAL = 0.1  # Intervalo de tiempo para enviar eventos en segundos
 
 def send_buffered_events():
+    
+    data, _ = pygame_socket.recvfrom(16)
+    lastX, lastY, remain = data.decode().split(';')
+    print('eventBuffer', event_buffer)
+    # event_buffer.append(move_buffer[-1])
+    event_buffer.append({'type': 'move', 'x': int(lastX), 'y': int(lastY)})
+    # event_buffer.clear()
     if event_buffer or move_buffer:
+        #This entire block requires optimization
         # on_move()
         # print(f'There was {len(move_buffer)} acumulated movements')
         # print('move buffer', move_buffer[0])
         # fromx, ffromy = (move_buffer[0]['x'], move_buffer[0]['y'])
         # tox, toy = (move_buffer[-1]['x'], move_buffer[-1]['y'])
         # print(f'{fromx},{ffromy}  moving to {tox},{toy}')
-        if(move_buffer):
-            # print('Obteniendo posicion real del raton')
-            data, _ = pygame_socket.recvfrom(16)
-            lastX, lastY, remain = data.decode().split(';')
-            print('data', lastX, lastY, move_buffer[-1])
-            # event_buffer.append(move_buffer[-1])
-            event_buffer.append({'type': 'move', 'x': int(lastX), 'y': int(lastY)})
+        # if(move_buffer):
+        # print('Obteniendo posicion real del raton')
+
             # print('data', {'type': 'move', 'x': lastX, 'y': lastY})
         move_buffer.clear()
         client_socket.sendall(json.dumps(event_buffer).encode('utf-8'))
