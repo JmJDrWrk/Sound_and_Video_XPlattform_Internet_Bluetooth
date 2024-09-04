@@ -11,6 +11,7 @@
 import socket
 import json
 import pyautogui
+pyautogui.FAILSAFE = True
 import configparser
 
 config = configparser.ConfigParser()
@@ -24,8 +25,9 @@ SERVER_PORT = int(config['mouseport'])
 
 # Crear un socket y enlazarlo a la dirección del servidor
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Allow quick reuse of the port
 server_socket.bind((SERVER_IP, SERVER_PORT))
-server_socket.listen()
+server_socket.listen(2)
 
 print(f"listening on {SERVER_IP}:{SERVER_PORT}")
 
@@ -56,12 +58,21 @@ def handle_client(client_socket):
                     elif event['type'] == 'scroll':
                         pyautogui.scroll(event['dy'])
                         # print(f"pyautogui.scroll(event['dy'])")
-            except Exception as exec:
+            except socket.error as exec:
                 print('Mouse Loop Exception', exec)
+                if exec.errno in [10038, 10054]:  # WinError 10038 or 10054
+                    print('Socket error detected, closing socket')
+                    break
+            except Exception as general_error:
+                print('General Exception:', general_error)
+                # break
+
     except Exception as e:
         print(f"Excepción: {e}")
     finally:
-        client_socket.close()
+        print('Avoided close of the socket')
+        exit()
+    
 
 # Aceptar conexiones de clientes
 while True:

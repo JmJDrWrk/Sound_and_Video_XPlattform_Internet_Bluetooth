@@ -42,6 +42,7 @@ def send_screen_data():
     
     # Create a TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Allow quick reuse of the port
     sock.bind((SERVER_IP, SERVER_PORT))
     sock.listen(1)
 

@@ -1,7 +1,8 @@
 #Ref SVPS-v4.0
 
 import socket
-import pyautogui 
+import pyautogui
+pyautogui.FAILSAFE = True
 import configparser
 
 config = configparser.ConfigParser()
@@ -56,6 +57,7 @@ def execute_command(command):
 
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Allow quick reuse of the port
     server_socket.bind(('0.0.0.0', KEYBOARDPORT)) 
     server_socket.listen(1)
     print(f"Server listening on port {KEYBOARDPORT}")

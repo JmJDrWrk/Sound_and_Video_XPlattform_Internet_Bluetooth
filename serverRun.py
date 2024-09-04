@@ -75,6 +75,7 @@ def control_server():
         data, addr = server_socket.recvfrom(1024)
         command = data.decode("utf-8")
         print('\n[control]', command, '\n')
+
         if command.startswith("restart"):
             _, server_name = command.split()
             restart_server(server_name)
