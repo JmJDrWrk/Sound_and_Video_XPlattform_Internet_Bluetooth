@@ -10,6 +10,8 @@
 import subprocess
 import configparser
 import time
+import socket
+import atexit
 
 filename='rutine.ini'
 rutine = configparser.ConfigParser()
@@ -17,6 +19,8 @@ rutine.read(filename)
 rutine = rutine['runtimeConfiguration']
 
 EXT = rutine['EXT']
+CONTROL_PORT = int(rutine['controlport'])
+CONTROL_IP = rutine['controlip']
 
 video = bool(rutine['allowVideoSharing'])
 keyboard = bool(rutine['allowkeyboard'])
@@ -37,6 +41,20 @@ if(not video and not audio and not keyboard):
     print('\nERROR!! At least one service must be set as true.')
     exit()
     
+    
+    
+    
+# before connecting anything, tell server to restart all services for preventing bugs
+control_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+SERVICES = ['video_server','keyboard_server','mouse_server']
+# Temporal solution
+for service in SERVICES:
+    print(f'\t Restarting service: {service}')
+    control_socket.sendto(f'restart {service}'.encode(), (CONTROL_IP, CONTROL_PORT))
+
+    
+
 processes = {}
 
 def start_server(server_name):
@@ -46,6 +64,7 @@ def start_server(server_name):
         process = subprocess.Popen(scripts[server_name], shell=True)
         processes[server_name] = process
         print(f"\tstarted {server_name} with PID {process.pid}")
+
 
 def stop_server(server_name):
 #    #Stops a server process.
@@ -69,12 +88,21 @@ def restart_server(server_name):
 for server_name in scripts:
     start_server(server_name)
 
+def on_exit():
+    print('Forced Exit')
+    for server_name in list(processes.keys()):
+        print(f'Stopping {server_name}')
+        stop_server(server_name)    
+    print("All clients stopped.")
+    
+atexit.register(on_exit)
+
 # Keep the main thread running to keep control thread alive
 try:
     while True:
         time.sleep(1)
 except KeyboardInterrupt:
     print("Shutting down all clients...")
-    for server_name in list(processes.keys()):
+    for server_name in SERVICES:#list(processes.keys()):
         stop_server(server_name)    
     print("All clients stopped.")

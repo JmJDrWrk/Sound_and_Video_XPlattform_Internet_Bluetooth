@@ -21,6 +21,7 @@ print('\n WARNING!! usePygameMouse value is ignored this version requires it to 
 
 pygame_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 pygame_socket.bind(('0.0.0.0', PYGAME_PORT))
+pygame_socket.settimeout(0.01)
 
 
 # Crear una conexión de socket al servidor
@@ -36,7 +37,7 @@ def send_buffered_events():
     
     data, _ = pygame_socket.recvfrom(16)
     lastX, lastY, remain = data.decode().split(';')
-    print('eventBuffer', event_buffer)
+    # print('eventBuffer', event_buffer)
     # event_buffer.append(move_buffer[-1])
     event_buffer.append({'type': 'move', 'x': int(lastX), 'y': int(lastY)})
     # event_buffer.clear()
@@ -97,6 +98,9 @@ with mouse.Listener(on_move=on_move, on_click=on_click, on_scroll=on_scroll) as 
                 time.sleep(BUFFER_INTERVAL)
                 # print('Sending events...')
                 send_buffered_events()
+            except socket.error as socketError:
+                # print('socketError')
+                pass
             except Exception as exce:
                 print('Exception inside mouse loop', exce)
                 pass
